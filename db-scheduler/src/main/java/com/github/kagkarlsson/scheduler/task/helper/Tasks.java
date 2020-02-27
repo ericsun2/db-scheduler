@@ -18,12 +18,19 @@ package com.github.kagkarlsson.scheduler.task.helper;
 import com.github.kagkarlsson.scheduler.task.*;
 import com.github.kagkarlsson.scheduler.task.schedule.Schedule;
 
+import com.github.kagkarlsson.scheduler.task.schedule.ScheduleData;
+import com.github.kagkarlsson.scheduler.task.schedule.Schedules;
+import java.security.InvalidAlgorithmParameterException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class Tasks {
+    private static final Logger LOG = LoggerFactory.getLogger(Tasks.class);
+
     public static final Duration DEFAULT_RETRY_INTERVAL = Duration.ofMinutes(5);
 
     public static RecurringTaskBuilder<Void> recurring(String name, Schedule schedule) {
@@ -46,6 +53,40 @@ public class Tasks {
         return new TaskBuilder<>(name, dataClass);
     }
 
+    public static Task<Void> fromScheduleData(ScheduleData sd) {
+        if (sd == null) {
+            return null;
+        }
+        try {
+            switch (sd.type) {
+                case CRON: {
+                    Schedule schedule =
+                        sd.zone != null ? Schedules.cron(sd.parameter, sd.zone) : Schedules.cron(sd.parameter);
+                    RecurringTaskBuilder<Void> builder = Tasks.recurring(sd.name, schedule);
+                    Object o = sd.executionClass.newInstance();
+                    if (!(o instanceof VoidExecutionHandler)) {
+                        throw new InvalidAlgorithmParameterException("invalid class: " + o.getClass().toString());
+                    }
+                    return builder.execute((VoidExecutionHandler<Void>)o);
+                }
+                case FIXED_DELAY: {
+                    Duration d = Duration.parse(sd.parameter);
+                    Schedule schedule = Schedules.fixedDelay(d);
+                    RecurringTaskBuilder<Void> builder = Tasks.recurring(sd.name, schedule);
+                    Object o = sd.executionClass.newInstance();
+                    if (!(o instanceof VoidExecutionHandler)) {
+                        throw new InvalidAlgorithmParameterException("invalid class: " + o.getClass().toString());
+                    }
+                    return builder.execute((VoidExecutionHandler<Void>)o);
+                }
+                default:
+                    throw new InvalidAlgorithmParameterException("invalid type: " + sd.type.toString());
+            }
+        } catch (Exception e) {
+            LOG.error("failed to create task from schedule data: {}", e.getMessage());
+        }
+        return null;
+    }
 
     public static class RecurringTaskBuilder<T> {
         private final String name;
@@ -53,7 +94,7 @@ public class Tasks {
         private Class<T> dataClass;
         private FailureHandler<T> onFailure;
         private DeadExecutionHandler<T> onDeadExecution;
-		private ScheduleOnStartup<T> scheduleOnStartup;
+        private ScheduleOnStartup<T> scheduleOnStartup;
 
         public RecurringTaskBuilder(String name, Schedule schedule, Class<T> dataClass) {
             this.name = name;

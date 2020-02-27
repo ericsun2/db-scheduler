@@ -11,4 +11,17 @@ create table scheduled_tasks (
   last_heartbeat timestamp(6) null,
   version BIGINT not null,
   PRIMARY KEY (task_name, task_instance)
-)
+);
+
+create table schedules (
+   name varchar(40) not null,
+   type varchar(16) not null,
+   parameter varchar(256) not null,
+   execution_class varchar(512) not null,
+   zone varchar(64),
+   active bool default true,
+   create_time long,
+   modify_time long,
+
+   PRIMARY KEY (name)
+);

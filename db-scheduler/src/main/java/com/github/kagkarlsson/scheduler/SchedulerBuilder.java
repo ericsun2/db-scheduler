@@ -54,6 +54,8 @@ public class SchedulerBuilder {
     protected ExecutorService executorService;
     protected Duration deleteUnresolvedAfter = Duration.ofDays(14);
 
+    protected ScheduleRepository scheduleRepository = new MapScheduleRepository();
+
     public SchedulerBuilder(DataSource dataSource, List<Task<?>> knownTasks) {
         this.dataSource = dataSource;
         this.knownTasks.addAll(knownTasks);
@@ -74,6 +76,11 @@ public class SchedulerBuilder {
 
     public SchedulerBuilder pollingInterval(Duration pollingInterval) {
         waiter = new Waiter(pollingInterval, clock);
+        return this;
+    }
+
+    public SchedulerBuilder persistToDB() {
+        scheduleRepository = new JdbcScheduleRepository(dataSource);
         return this;
     }
 
@@ -142,7 +149,7 @@ public class SchedulerBuilder {
         if (pollingLimit < executorThreads) {
             LOG.warn("Polling-limit is less than number of threads. Should be equal or higher.");
         }
-        final TaskResolver taskResolver = new TaskResolver(statsRegistry, clock, knownTasks);
+        final TaskResolver taskResolver = new TaskResolver(statsRegistry, scheduleRepository, clock, knownTasks);
         final JdbcTaskRepository taskRepository = new JdbcTaskRepository(dataSource, tableName, taskResolver, schedulerName, serializer);
 
         ExecutorService candidateExecutorService = executorService;
@@ -157,8 +164,8 @@ public class SchedulerBuilder {
             enableImmediateExecution,
             tableName,
             schedulerName.getName());
-        return new Scheduler(clock, taskRepository, taskResolver, executorThreads, candidateExecutorService,
-                schedulerName, waiter, heartbeatInterval, enableImmediateExecution, statsRegistry, pollingLimit,
+        return new Scheduler(clock, scheduleRepository, taskRepository, taskResolver, executorThreads, candidateExecutorService,
+            schedulerName, waiter, heartbeatInterval, enableImmediateExecution, statsRegistry, pollingLimit,
             deleteUnresolvedAfter, startTasks);
     }
 }

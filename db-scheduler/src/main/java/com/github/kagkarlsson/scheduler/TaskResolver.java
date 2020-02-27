@@ -24,40 +24,67 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-
-import static java.util.function.Function.identity;
 
 @SuppressWarnings("rawtypes")
 public class TaskResolver {
     private static final Logger LOG = LoggerFactory.getLogger(TaskResolver.class);
     private final StatsRegistry statsRegistry;
     private final Clock clock;
-    private final Map<String, Task> taskMap;
+    //private final Map<String, Task> taskMap;
+    private final ScheduleRepository _scheduleRepository;
     private final Map<String, UnresolvedTask> unresolvedTasks = new ConcurrentHashMap<>();
 
+    // this constructor is for test only, backward compatibility
+    @Deprecated
     public TaskResolver(StatsRegistry statsRegistry, Task<?>... knownTasks) {
-        this(statsRegistry, Arrays.asList(knownTasks));
+        this(statsRegistry, new MapScheduleRepository(), Arrays.asList(knownTasks));
     }
 
-    public TaskResolver(StatsRegistry statsRegistry, List<Task<?>> knownTasks) {
-        this(statsRegistry, new SystemClock(), knownTasks);
+    // this constructor is for test only, backward compatibility
+    @Deprecated
+    public TaskResolver(StatsRegistry statsRegistry, Clock clock, Task<?>... knownTasks) {
+        this(statsRegistry, new MapScheduleRepository(), clock, Arrays.asList(knownTasks));
     }
 
+    // this constructor is for test only, backward compatibility
+    @Deprecated
     public TaskResolver(StatsRegistry statsRegistry, Clock clock, List<Task<?>> knownTasks) {
+        this(statsRegistry, new MapScheduleRepository(), clock, knownTasks);
+    }
+
+    // this constructor is for test only, backward compatibility
+    @Deprecated
+    public TaskResolver(StatsRegistry statsRegistry, List<Task<?>> knownTasks) {
+        this(statsRegistry, new MapScheduleRepository(), new SystemClock(), knownTasks);
+    }
+
+    public TaskResolver(StatsRegistry statsRegistry, ScheduleRepository scheduleRepository, Task<?>... knownTasks) {
+        this(statsRegistry, scheduleRepository, Arrays.asList(knownTasks));
+    }
+
+    public TaskResolver(StatsRegistry statsRegistry, ScheduleRepository scheduleRepository, List<Task<?>> knownTasks) {
+        this(statsRegistry, scheduleRepository, new SystemClock(), knownTasks);
+    }
+
+    public TaskResolver(StatsRegistry statsRegistry, ScheduleRepository scheduleRepository, Clock clock, List<Task<?>> knownTasks) {
         this.statsRegistry = statsRegistry;
         this.clock = clock;
-        this.taskMap = knownTasks.stream().collect(Collectors.toMap(Task::getName, identity()));
+        this._scheduleRepository = scheduleRepository;
+        // add tasks
+        //this.taskMap = knownTasks.stream().collect(Collectors.toMap(Task::getName, identity()));
+        if (knownTasks != null) {
+            knownTasks.forEach(task -> _scheduleRepository.add(task));
+        }
     }
 
     public Optional<Task> resolve(String taskName) {
-        Task task = taskMap.get(taskName);
+        //Task task = taskMap.get(taskName);
+        Task task = _scheduleRepository.getTask(taskName);
         if (task == null) {
             addUnresolved(taskName);
             statsRegistry.register(StatsRegistry.SchedulerStatsEvent.UNRESOLVED_TASK);
@@ -71,7 +98,8 @@ public class TaskResolver {
     }
 
     public void addTask(Task task) {
-        taskMap.put(task.getName(), task);
+        _scheduleRepository.add(task);
+        //taskMap.put(task.getName(), task);
     }
 
     public List<UnresolvedTask> getUnresolved() {
