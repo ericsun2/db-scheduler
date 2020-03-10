@@ -13,6 +13,7 @@ public class ScheduleData {
     public ScheduleType type;
     public String parameter;
     public Class executionClass;
+    public Object executionParameter;
     public ZoneId zone;
     public boolean active;
     public long createTime;
@@ -22,11 +23,12 @@ public class ScheduleData {
     }
 
     public ScheduleData(String name, ScheduleType type, String parameter, Class executionClass,
-        ZoneId zone, boolean active, long createTime, long modifyTime) {
+        Object executionParameter, ZoneId zone, boolean active, long createTime, long modifyTime) {
         this.name = name;
         this.type = type;
         this.parameter = parameter;
         this.executionClass = executionClass;
+        this.executionParameter = executionParameter;
         this.zone = zone;
         this.active = active;
         this.createTime = createTime;

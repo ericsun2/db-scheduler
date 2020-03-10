@@ -1,11 +1,12 @@
 package com.github.kagkarlsson.scheduler;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.kagkarlsson.jdbc.JdbcRunner;
 import com.github.kagkarlsson.jdbc.ResultSetMapper;
 import com.github.kagkarlsson.jdbc.SQLRuntimeException;
 import com.github.kagkarlsson.scheduler.task.OnStartup;
 import com.github.kagkarlsson.scheduler.task.Task;
-import com.github.kagkarlsson.scheduler.task.VoidExecutionHandler;
 import com.github.kagkarlsson.scheduler.task.helper.Tasks;
 import com.github.kagkarlsson.scheduler.task.schedule.ScheduleData;
 import java.sql.PreparedStatement;
@@ -27,6 +28,7 @@ public class JdbcScheduleRepository implements ScheduleRepository {
     private static final Logger LOG = LoggerFactory.getLogger(JdbcScheduleRepository.class);
     private final JdbcRunner jdbcRunner;
     private final String tableName;
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     public JdbcScheduleRepository(DataSource dataSource) {
         this(dataSource, DEFAULT_TABLE_NAME);
@@ -40,9 +42,19 @@ public class JdbcScheduleRepository implements ScheduleRepository {
     @Override
     public boolean add(ScheduleData schedule) {
         try {
+            String executionParameterClass;
+            String executionParameter;
+            if (schedule.executionParameter != null) {
+                executionParameter = mapper.writeValueAsString(schedule.executionParameter);
+                executionParameterClass = schedule.executionParameter.getClass().getName();
+            } else {
+                executionParameterClass = null;
+                executionParameter = null;
+            }
+
             jdbcRunner.execute(
-                "insert into " + tableName + "(name, type, parameter, execution_class, zone, active, create_time, modify_time)"
-                    + " values(?, ?, ?, ?, ?, ?, ?, ?)",
+                "insert into " + tableName + "(name, type, parameter, execution_class, zone, active, create_time, modify_time, execution_parameter_class, execution_parameter)"
+                    + " values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (PreparedStatement p) -> {
                     p.setString(1, schedule.name != null ? schedule.name : "");
                     p.setString(2, schedule.type.toString());
@@ -52,11 +64,16 @@ public class JdbcScheduleRepository implements ScheduleRepository {
                     p.setBoolean(6, schedule.active);
                     p.setLong(7, schedule.createTime);
                     p.setLong(8, schedule.modifyTime);
+                    p.setString(9, executionParameterClass);
+                    p.setString(10, executionParameter);
                 });
             return true;
 
         } catch (SQLRuntimeException e) {
             LOG.debug("Exception when inserting schedule. Assuming it to be a constraint violation.", e);
+        } catch (JsonProcessingException e) {
+            LOG.debug("JsonProcessingException in add", e);
+            return false;
         }
         return false;
     }
@@ -167,8 +184,18 @@ public class JdbcScheduleRepository implements ScheduleRepository {
                     String zoneStr = rs.getString("zone");
                     ZoneId zone = zoneStr != null && zoneStr.length() > 1 ? ZoneId.of(zoneStr) : null;
 
-                    this.consumer.accept(new ScheduleData(rs.getString("name"), ScheduleData.ScheduleType.valueOf(rs.getString("type")),
-                        rs.getString("parameter"), c, zone, rs.getBoolean("active"),
+                    Object parameter = null;
+                    String executionParameterClassStr = rs.getString("execution_parameter_class");
+                    if (executionParameterClassStr != null && executionParameterClassStr.length() > 0) {
+                        Class executionParameterClass = Class.forName(executionParameterClassStr);
+                        String jsonStr = rs.getString("execution_parameter");
+                        parameter = mapper.readValue(jsonStr, executionParameterClass);
+                    }
+
+                    this.consumer.accept(new ScheduleData(rs.getString("name"),
+                        ScheduleData.ScheduleType.valueOf(rs.getString("type")),
+                        rs.getString("parameter"), c, parameter,
+                        zone, rs.getBoolean("active"),
                         rs.getLong("create_time"), rs.getLong("modify_time")));
                 } catch (Exception e) {
                     LOG.error("failed to read schedule from db: {}", e.getMessage());

@@ -3,9 +3,7 @@ package com.github.kagkarlsson.scheduler.example;
 import com.github.kagkarlsson.scheduler.HsqlTestDatabaseRule;
 import com.github.kagkarlsson.scheduler.Scheduler;
 import com.github.kagkarlsson.scheduler.helper.TestExecutionClass;
-import com.github.kagkarlsson.scheduler.task.ExecutionContext;
-import com.github.kagkarlsson.scheduler.task.TaskInstance;
-import com.github.kagkarlsson.scheduler.task.VoidExecutionHandler;
+import com.github.kagkarlsson.scheduler.helper.TestExecutionParameter;
 import com.github.kagkarlsson.scheduler.task.schedule.ScheduleData;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
@@ -32,12 +30,14 @@ public class SchedulerPersistenceMain {
 
         scheduler.start();
 
+        TestExecutionParameter parameter = new TestExecutionParameter("123");
+
         ScheduleData sdCron = new ScheduleData("testCron", ScheduleData.ScheduleType.CRON, "*/10 * * * * ?",
-            TestExecutionClass.class, null, true, 0, 0);
+            TestExecutionClass.class, parameter, null, true, 0, 0);
         scheduler.addSchedule(sdCron);
 
         ScheduleData sdFixedDelay = new ScheduleData("testFixedDelay", ScheduleData.ScheduleType.FIXED_DELAY, "PT30S",
-            TestExecutionClass.class, null, true, 0, 0);
+            TestExecutionClass.class, null, null, true, 0, 0);
         scheduler.addSchedule(sdFixedDelay);
 
         sleep(3000);

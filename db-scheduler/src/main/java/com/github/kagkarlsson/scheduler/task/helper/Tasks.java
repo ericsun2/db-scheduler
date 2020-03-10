@@ -53,6 +53,19 @@ public class Tasks {
         return new TaskBuilder<>(name, dataClass);
     }
 
+    private static VoidExecutionHandler<Void> getExecutionObject(ScheduleData sd) throws Exception {
+        Object o;
+        if (sd.executionParameter == null) {
+            o = sd.executionClass.newInstance();
+        } else {
+            o = sd.executionClass.getConstructor(sd.executionParameter.getClass()).newInstance(sd.executionParameter);
+        }
+        if (!(o instanceof VoidExecutionHandler)) {
+            throw new InvalidAlgorithmParameterException("invalid class: " + o.getClass().toString());
+        }
+        return (VoidExecutionHandler<Void>)o;
+    }
+
     public static Task<Void> fromScheduleData(ScheduleData sd) {
         if (sd == null) {
             return null;
@@ -63,21 +76,15 @@ public class Tasks {
                     Schedule schedule =
                         sd.zone != null ? Schedules.cron(sd.parameter, sd.zone) : Schedules.cron(sd.parameter);
                     RecurringTaskBuilder<Void> builder = Tasks.recurring(sd.name, schedule);
-                    Object o = sd.executionClass.newInstance();
-                    if (!(o instanceof VoidExecutionHandler)) {
-                        throw new InvalidAlgorithmParameterException("invalid class: " + o.getClass().toString());
-                    }
-                    return builder.execute((VoidExecutionHandler<Void>)o);
+                    VoidExecutionHandler<Void> handler = getExecutionObject(sd);
+                    return builder.execute(handler);
                 }
                 case FIXED_DELAY: {
                     Duration d = Duration.parse(sd.parameter);
                     Schedule schedule = Schedules.fixedDelay(d);
                     RecurringTaskBuilder<Void> builder = Tasks.recurring(sd.name, schedule);
-                    Object o = sd.executionClass.newInstance();
-                    if (!(o instanceof VoidExecutionHandler)) {
-                        throw new InvalidAlgorithmParameterException("invalid class: " + o.getClass().toString());
-                    }
-                    return builder.execute((VoidExecutionHandler<Void>)o);
+                    VoidExecutionHandler<Void> handler = getExecutionObject(sd);
+                    return builder.execute(handler);
                 }
                 default:
                     throw new InvalidAlgorithmParameterException("invalid type: " + sd.type.toString());

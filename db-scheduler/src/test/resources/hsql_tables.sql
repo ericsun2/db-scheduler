@@ -18,6 +18,8 @@ create table schedules (
    type varchar(16) not null,
    parameter varchar(256) not null,
    execution_class varchar(512) not null,
+   execution_parameter_class varchar(512),
+   execution_parameter varchar(2048),
    zone varchar(64),
    active bit default 1,
    create_time bigint,
