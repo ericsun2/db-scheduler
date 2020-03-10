@@ -19,7 +19,7 @@ create table schedules (
    parameter varchar(256) not null,
    execution_class varchar(512) not null,
    execution_parameter_class varchar(512),
-   execution_parameter text,
+   execution_parameter blob,
    zone varchar(64),
    active bool default true,
    create_time long,

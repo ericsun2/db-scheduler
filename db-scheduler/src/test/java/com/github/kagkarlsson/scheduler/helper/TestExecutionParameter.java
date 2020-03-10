@@ -1,6 +1,9 @@
 package com.github.kagkarlsson.scheduler.helper;
 
-public class TestExecutionParameter {
+import java.io.Serializable;
+
+
+public class TestExecutionParameter implements Serializable {
     private String testStr;
 
     public TestExecutionParameter(String testStr) {
@@ -14,4 +17,5 @@ public class TestExecutionParameter {
     public String getTestStr() {
         return testStr;
     }
+
 }

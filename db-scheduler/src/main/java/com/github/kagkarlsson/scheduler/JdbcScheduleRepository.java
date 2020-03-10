@@ -28,30 +28,21 @@ public class JdbcScheduleRepository implements ScheduleRepository {
     private static final Logger LOG = LoggerFactory.getLogger(JdbcScheduleRepository.class);
     private final JdbcRunner jdbcRunner;
     private final String tableName;
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private final Serializer serializer;
 
     public JdbcScheduleRepository(DataSource dataSource) {
-        this(dataSource, DEFAULT_TABLE_NAME);
+        this(dataSource, DEFAULT_TABLE_NAME, Serializer.DEFAULT_JAVA_SERIALIZER);
     }
 
-    public JdbcScheduleRepository(DataSource dataSource, String tableName) {
+    public JdbcScheduleRepository(DataSource dataSource, String tableName, Serializer serializer) {
         this.tableName = tableName;
         this.jdbcRunner = new JdbcRunner(dataSource);
+        this.serializer = serializer;
     }
 
     @Override
     public boolean add(ScheduleData schedule) {
         try {
-            String executionParameterClass;
-            String executionParameter;
-            if (schedule.executionParameter != null) {
-                executionParameter = mapper.writeValueAsString(schedule.executionParameter);
-                executionParameterClass = schedule.executionParameter.getClass().getName();
-            } else {
-                executionParameterClass = null;
-                executionParameter = null;
-            }
-
             jdbcRunner.execute(
                 "insert into " + tableName + "(name, type, parameter, execution_class, zone, active, create_time, modify_time, execution_parameter_class, execution_parameter)"
                     + " values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -64,16 +55,13 @@ public class JdbcScheduleRepository implements ScheduleRepository {
                     p.setBoolean(6, schedule.active);
                     p.setLong(7, schedule.createTime);
                     p.setLong(8, schedule.modifyTime);
-                    p.setString(9, executionParameterClass);
-                    p.setString(10, executionParameter);
+                    p.setString(9, schedule.executionParameter != null ? schedule.executionParameter.getClass().getName() : null);
+                    p.setObject(10, schedule.executionParameter != null ? serializer.serialize(schedule.executionParameter) : null);
                 });
             return true;
 
         } catch (SQLRuntimeException e) {
             LOG.debug("Exception when inserting schedule. Assuming it to be a constraint violation.", e);
-        } catch (JsonProcessingException e) {
-            LOG.debug("JsonProcessingException in add", e);
-            return false;
         }
         return false;
     }
@@ -188,8 +176,7 @@ public class JdbcScheduleRepository implements ScheduleRepository {
                     String executionParameterClassStr = rs.getString("execution_parameter_class");
                     if (executionParameterClassStr != null && executionParameterClassStr.length() > 0) {
                         Class executionParameterClass = Class.forName(executionParameterClassStr);
-                        String jsonStr = rs.getString("execution_parameter");
-                        parameter = mapper.readValue(jsonStr, executionParameterClass);
+                        parameter = serializer.deserialize(executionParameterClass, rs.getBytes("execution_parameter"));
                     }
 
                     this.consumer.accept(new ScheduleData(rs.getString("name"),
