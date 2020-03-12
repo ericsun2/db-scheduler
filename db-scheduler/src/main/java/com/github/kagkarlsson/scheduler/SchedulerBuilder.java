@@ -55,6 +55,7 @@ public class SchedulerBuilder {
     protected Duration deleteUnresolvedAfter = Duration.ofDays(14);
 
     protected ScheduleRepository scheduleRepository = new MapScheduleRepository();
+    protected Object contextParameter = null;
 
     public SchedulerBuilder(DataSource dataSource, List<Task<?>> knownTasks) {
         this.dataSource = dataSource;
@@ -81,6 +82,11 @@ public class SchedulerBuilder {
 
     public SchedulerBuilder persistToDB() {
         scheduleRepository = new JdbcScheduleRepository(dataSource);
+        return this;
+    }
+
+    public SchedulerBuilder setContextParameter(Object parameter) {
+        this.contextParameter = parameter;
         return this;
     }
 
@@ -166,6 +172,6 @@ public class SchedulerBuilder {
             schedulerName.getName());
         return new Scheduler(clock, scheduleRepository, taskRepository, taskResolver, executorThreads, candidateExecutorService,
             schedulerName, waiter, heartbeatInterval, enableImmediateExecution, statsRegistry, pollingLimit,
-            deleteUnresolvedAfter, startTasks);
+            deleteUnresolvedAfter, startTasks, contextParameter);
     }
 }

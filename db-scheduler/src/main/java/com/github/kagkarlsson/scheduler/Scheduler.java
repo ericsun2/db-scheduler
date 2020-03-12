@@ -43,6 +43,7 @@ public class Scheduler implements SchedulerClient {
     private static final Logger LOG = LoggerFactory.getLogger(Scheduler.class);
     private final SchedulerClient delegate;
     private final Clock clock;
+    private final Object contextParameter;
     private final ScheduleRepository scheduleRepository;
     private final TaskRepository taskRepository;
     private final TaskResolver taskResolver;
@@ -68,12 +69,20 @@ public class Scheduler implements SchedulerClient {
     protected Scheduler(Clock clock, TaskRepository taskRepository, TaskResolver taskResolver, int threadpoolSize, ExecutorService executorService, SchedulerName schedulerName,
         Waiter executeDueWaiter, Duration heartbeatInterval, boolean enableImmediateExecution, StatsRegistry statsRegistry, int pollingLimit, Duration deleteUnresolvedAfter, List<OnStartup> onStartup) {
         this(clock, new MapScheduleRepository(), taskRepository, taskResolver, threadpoolSize, executorService, schedulerName,
-            executeDueWaiter, heartbeatInterval, enableImmediateExecution, statsRegistry, pollingLimit, deleteUnresolvedAfter, onStartup);
+            executeDueWaiter, heartbeatInterval, enableImmediateExecution, statsRegistry, pollingLimit, deleteUnresolvedAfter, onStartup, null);
     }
 
     protected Scheduler(Clock clock, ScheduleRepository scheduleRepository, TaskRepository taskRepository, TaskResolver taskResolver, int threadpoolSize, ExecutorService executorService, SchedulerName schedulerName,
         Waiter executeDueWaiter, Duration heartbeatInterval, boolean enableImmediateExecution, StatsRegistry statsRegistry, int pollingLimit, Duration deleteUnresolvedAfter, List<OnStartup> onStartup) {
+        this(clock, scheduleRepository, taskRepository, taskResolver, threadpoolSize, executorService, schedulerName,
+            executeDueWaiter, heartbeatInterval, enableImmediateExecution, statsRegistry, pollingLimit, deleteUnresolvedAfter, onStartup, null);
+    }
+
+    protected Scheduler(Clock clock, ScheduleRepository scheduleRepository, TaskRepository taskRepository, TaskResolver taskResolver, int threadpoolSize, ExecutorService executorService, SchedulerName schedulerName,
+        Waiter executeDueWaiter, Duration heartbeatInterval, boolean enableImmediateExecution, StatsRegistry statsRegistry, int pollingLimit, Duration deleteUnresolvedAfter, List<OnStartup> onStartup,
+        Object contextParameter) {
         this.clock = clock;
+        this.contextParameter = contextParameter;
         this.scheduleRepository = scheduleRepository;
         this.taskRepository = taskRepository;
         this.taskResolver = taskResolver;
@@ -92,6 +101,10 @@ public class Scheduler implements SchedulerClient {
         this.updateHeartbeatExecutor = Executors.newSingleThreadExecutor(defaultThreadFactoryWithPrefix(THREAD_PREFIX + "-update-heartbeat-"));
         SchedulerClientEventListener earlyExecutionListener = (enableImmediateExecution ? new TriggerCheckForDueExecutions(schedulerState, clock, executeDueWaiter) : SchedulerClientEventListener.NOOP);
         delegate = new StandardSchedulerClient(taskRepository, earlyExecutionListener);
+    }
+
+    public Object getContextParameter() {
+        return this.contextParameter;
     }
 
     public void start() {
@@ -361,7 +374,7 @@ public class Scheduler implements SchedulerClient {
             Instant executionStarted = clock.now();
             try {
                 LOG.debug("Executing " + execution);
-                CompletionHandler completion = task.get().execute(execution.taskInstance, new ExecutionContext(schedulerState, execution, Scheduler.this));
+                CompletionHandler completion = task.get().execute(execution.taskInstance, new ExecutionContext(schedulerState, execution, Scheduler.this, Scheduler.this.getContextParameter()));
                 LOG.debug("Execution done");
 
                 complete(completion, execution, executionStarted);

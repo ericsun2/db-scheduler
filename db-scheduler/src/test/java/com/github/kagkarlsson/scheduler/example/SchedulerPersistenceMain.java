@@ -18,6 +18,7 @@ public class SchedulerPersistenceMain {
         final Scheduler scheduler = Scheduler
             .create(dataSource)
             .persistToDB()
+            .setContextParameter(new Integer(12))
             .build();
 
         Runtime.getRuntime().addShutdownHook(new Thread() {

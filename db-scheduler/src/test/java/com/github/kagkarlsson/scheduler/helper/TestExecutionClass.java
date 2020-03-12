@@ -18,8 +18,9 @@ public class TestExecutionClass implements VoidExecutionHandler<Void> {
 
     @Override
     public void execute(TaskInstance<Void> taskInstance, ExecutionContext executionContext) {
-        System.out.println(String.format("thread: %s, task: %s, timestamp %d, parameter %s",
+        System.out.println(String.format("thread: %s, task: %s, timestamp %d, contextParameter %s, executionParameter %s",
             Thread.currentThread().getName(), taskInstance.getTaskName(), System.currentTimeMillis(),
-            this._p != null ? this._p.getTestStr() : ""));
+            executionContext.getParameter() != null ? executionContext.getParameter().toString() : "null",
+            _p != null ? _p.getTestStr() : "null"));
     }
 }

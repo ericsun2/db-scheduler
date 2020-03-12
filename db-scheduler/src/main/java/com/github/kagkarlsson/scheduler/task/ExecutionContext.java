@@ -23,11 +23,13 @@ public class ExecutionContext {
 	private final SchedulerState schedulerState;
 	private final Execution execution;
 	private final SchedulerClient schedulerClient;
+	private final Object parameter;
 
-	public ExecutionContext(SchedulerState schedulerState, Execution execution, SchedulerClient schedulerClient) {
+	public ExecutionContext(SchedulerState schedulerState, Execution execution, SchedulerClient schedulerClient, Object parameter) {
 		this.schedulerState = schedulerState;
 		this.execution = execution;
 		this.schedulerClient = schedulerClient;
+		this.parameter = parameter;
 	}
 
 	public SchedulerState getSchedulerState() {
@@ -44,4 +46,8 @@ public class ExecutionContext {
 	public Execution getExecution() {
 		return execution;
 	}
+
+	public Object getParameter() {
+	    return parameter;
+    }
 }
