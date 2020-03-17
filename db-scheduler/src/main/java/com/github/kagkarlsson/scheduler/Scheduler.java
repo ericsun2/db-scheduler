@@ -120,11 +120,16 @@ public class Scheduler implements SchedulerClient {
     }
 
     public boolean addSchedule(ScheduleData sd) {
+        Task t = Tasks.fromScheduleData(sd);
+        if (t == null) {
+            return false;
+        }
+
         if (!this.scheduleRepository.add(sd)) {
             return false;
         }
 
-        return startTask(Tasks.fromScheduleData(sd));
+        return startTask(t);
     }
 
     protected boolean startTask(Task task) {
