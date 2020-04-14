@@ -32,6 +32,10 @@ public class JdbcScheduleRepository implements ScheduleRepository {
         this(dataSource, DEFAULT_TABLE_NAME, Serializer.DEFAULT_JAVA_SERIALIZER);
     }
 
+    public JdbcScheduleRepository(DataSource dataSource, String tableName) {
+        this(dataSource, tableName, Serializer.DEFAULT_JAVA_SERIALIZER);
+    }
+
     public JdbcScheduleRepository(DataSource dataSource, String tableName, Serializer serializer) {
         this.tableName = tableName;
         this.jdbcRunner = new JdbcRunner(dataSource);

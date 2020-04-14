@@ -15,6 +15,7 @@
  */
 package com.github.kagkarlsson.scheduler.testhelper;
 
+import com.github.kagkarlsson.scheduler.MapScheduleRepository;
 import com.github.kagkarlsson.scheduler.ScheduleRepository;
 import com.github.kagkarlsson.scheduler.SchedulerBuilder;
 import com.github.kagkarlsson.scheduler.JdbcTaskRepository;
@@ -65,6 +66,7 @@ public class TestHelper {
         }
 
         public ManualScheduler build() {
+            final ScheduleRepository scheduleRepository = new MapScheduleRepository();
             final TaskResolver taskResolver = new TaskResolver(statsRegistry, scheduleRepository, clock, knownTasks);
             final JdbcTaskRepository taskRepository = new JdbcTaskRepository(dataSource, tableName, taskResolver, schedulerName, serializer);
 

@@ -54,7 +54,8 @@ public class SchedulerBuilder {
     protected ExecutorService executorService;
     protected Duration deleteUnresolvedAfter = Duration.ofDays(14);
 
-    protected ScheduleRepository scheduleRepository = new MapScheduleRepository();
+    protected boolean persistedToDB = false;
+    protected String persistedToDBTableName = JdbcScheduleRepository.DEFAULT_TABLE_NAME;
     protected Object contextParameter = null;
 
     public SchedulerBuilder(DataSource dataSource, List<Task<?>> knownTasks) {
@@ -81,7 +82,13 @@ public class SchedulerBuilder {
     }
 
     public SchedulerBuilder persistToDB() {
-        scheduleRepository = new JdbcScheduleRepository(dataSource);
+        this.persistedToDB = true;
+        return this;
+    }
+
+    public SchedulerBuilder persistToDB(String tableName) {
+        this.persistedToDB = true;
+        this.persistedToDBTableName = tableName;
         return this;
     }
 
@@ -155,6 +162,9 @@ public class SchedulerBuilder {
         if (pollingLimit < executorThreads) {
             LOG.warn("Polling-limit is less than number of threads. Should be equal or higher.");
         }
+        final ScheduleRepository scheduleRepository = persistedToDB
+            ? new JdbcScheduleRepository(dataSource, this.persistedToDBTableName) : new MapScheduleRepository();
+
         final TaskResolver taskResolver = new TaskResolver(statsRegistry, scheduleRepository, clock, knownTasks);
         final JdbcTaskRepository taskRepository = new JdbcTaskRepository(dataSource, tableName, taskResolver, schedulerName, serializer);
 
