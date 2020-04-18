@@ -51,6 +51,8 @@ public interface SchedulerClient {
         private List<Task<?>> knownTasks;
         private final Serializer serializer = Serializer.DEFAULT_JAVA_SERIALIZER;
         private String tableName = JdbcTaskRepository.DEFAULT_TABLE_NAME;
+        protected boolean persistedHistory = false;
+        protected String persistedHistoryTableName = JdbcTaskRepository.DEFAULT_HISTORY_TABLE_NAME;
 
         protected boolean persistedToDB = false;
         protected String persistedToDBTableName = JdbcScheduleRepository.DEFAULT_TABLE_NAME;
@@ -84,12 +86,24 @@ public interface SchedulerClient {
             return this;
         }
 
+        public Builder persistHistory() {
+            this.persistedHistory = true;
+            return this;
+        }
+
+        public Builder persistHistory(String tableName) {
+            this.persistedHistory = true;
+            this.persistedHistoryTableName = tableName;
+            return this;
+        }
+
         public SchedulerClient build() {
             final ScheduleRepository scheduleRepository = persistedToDB
                 ? new JdbcScheduleRepository(dataSource, this.persistedToDBTableName) : new MapScheduleRepository();
 
             TaskResolver taskResolver = new TaskResolver(StatsRegistry.NOOP, scheduleRepository, knownTasks);
-            TaskRepository taskRepository = new JdbcTaskRepository(dataSource, tableName, taskResolver, new SchedulerClientName(), serializer);
+            TaskRepository taskRepository = new JdbcTaskRepository(dataSource, tableName, taskResolver, new SchedulerClientName(), serializer,
+                this.persistedHistory, this.persistedHistoryTableName);
 
             return new StandardSchedulerClient(taskRepository);
         }

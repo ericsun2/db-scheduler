@@ -27,3 +27,23 @@ create table schedules (
 
    PRIMARY KEY (name)
 );
+
+create table scheduled_tasks_history (
+    id int auto_increment NOT NULL,
+
+    task_name varchar(40) not null,
+    task_instance varchar(40) not null,
+    task_data blob,
+    execution_time timestamp(6) not null,
+    picked BOOLEAN not null,
+    picked_by varchar(50),
+    last_success timestamp(6) null,
+    last_failure timestamp(6) null,
+    consecutive_failures INT,
+    last_heartbeat timestamp(6) null,
+    version BIGINT not null,
+
+    PRIMARY KEY (id),
+    KEY scheduled_tasks_history__search_key (task_name, task_instance, execution_time)
+);
+

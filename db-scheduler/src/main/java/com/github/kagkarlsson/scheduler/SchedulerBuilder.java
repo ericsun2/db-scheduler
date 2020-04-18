@@ -57,6 +57,8 @@ public class SchedulerBuilder {
     protected boolean persistedToDB = false;
     protected String persistedToDBTableName = JdbcScheduleRepository.DEFAULT_TABLE_NAME;
     protected Object contextParameter = null;
+    protected boolean persistedHistory = false;
+    protected String persistedHistoryTableName = JdbcTaskRepository.DEFAULT_HISTORY_TABLE_NAME;
 
     public SchedulerBuilder(DataSource dataSource, List<Task<?>> knownTasks) {
         this.dataSource = dataSource;
@@ -94,6 +96,17 @@ public class SchedulerBuilder {
 
     public SchedulerBuilder setContextParameter(Object parameter) {
         this.contextParameter = parameter;
+        return this;
+    }
+
+    public SchedulerBuilder persistHistory() {
+        this.persistedHistory = true;
+        return this;
+    }
+
+    public SchedulerBuilder persistHistory(String tableName) {
+        this.persistedHistory = true;
+        this.persistedHistoryTableName = tableName;
         return this;
     }
 
@@ -166,7 +179,8 @@ public class SchedulerBuilder {
             ? new JdbcScheduleRepository(dataSource, this.persistedToDBTableName) : new MapScheduleRepository();
 
         final TaskResolver taskResolver = new TaskResolver(statsRegistry, scheduleRepository, clock, knownTasks);
-        final JdbcTaskRepository taskRepository = new JdbcTaskRepository(dataSource, tableName, taskResolver, schedulerName, serializer);
+        final JdbcTaskRepository taskRepository = new JdbcTaskRepository(dataSource, tableName, taskResolver, schedulerName, serializer,
+            this.persistedHistory, this.persistedHistoryTableName);
 
         ExecutorService candidateExecutorService = executorService;
         if (candidateExecutorService == null) {

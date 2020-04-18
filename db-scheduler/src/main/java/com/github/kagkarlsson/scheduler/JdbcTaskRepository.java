@@ -47,6 +47,7 @@ import static java.util.stream.Collectors.toList;
 public class JdbcTaskRepository implements TaskRepository {
 
 	public static final String DEFAULT_TABLE_NAME = "scheduled_tasks";
+    public static final String DEFAULT_HISTORY_TABLE_NAME = "scheduled_tasks_history";
 
 	private static final Logger LOG = LoggerFactory.getLogger(JdbcTaskRepository.class);
 	private final TaskResolver taskResolver;
@@ -54,18 +55,27 @@ public class JdbcTaskRepository implements TaskRepository {
 	private final JdbcRunner jdbcRunner;
 	private final Serializer serializer;
 	private final String tableName;
+	private final boolean persistHistory;
+	private final String persistHistoryTableName;
 
 	public JdbcTaskRepository(DataSource dataSource, String tableName, TaskResolver taskResolver, SchedulerName schedulerSchedulerName) {
-		this(dataSource, tableName, taskResolver, schedulerSchedulerName, Serializer.DEFAULT_JAVA_SERIALIZER);
+		this(dataSource, tableName, taskResolver, schedulerSchedulerName, Serializer.DEFAULT_JAVA_SERIALIZER, false, null);
 	}
 
 	public JdbcTaskRepository(DataSource dataSource, String tableName, TaskResolver taskResolver, SchedulerName schedulerSchedulerName, Serializer serializer) {
-		this.tableName = tableName;
-		this.taskResolver = taskResolver;
-		this.schedulerSchedulerName = schedulerSchedulerName;
-		this.jdbcRunner = new JdbcRunner(dataSource);
-		this.serializer = serializer;
+		this(dataSource, tableName, taskResolver, schedulerSchedulerName, serializer, false, null);
 	}
+
+    public JdbcTaskRepository(DataSource dataSource, String tableName, TaskResolver taskResolver, SchedulerName schedulerSchedulerName, Serializer serializer,
+        boolean persistHistory, String persistHistoryTableName) {
+        this.tableName = tableName;
+        this.taskResolver = taskResolver;
+        this.schedulerSchedulerName = schedulerSchedulerName;
+        this.jdbcRunner = new JdbcRunner(dataSource);
+        this.serializer = serializer;
+        this.persistHistory = persistHistory;
+        this.persistHistoryTableName = persistHistoryTableName;
+    }
 
 	@Override
 	@SuppressWarnings({"unchecked"})
@@ -170,6 +180,9 @@ public class JdbcTaskRepository implements TaskRepository {
 	}
 
 	private boolean rescheduleInternal(Execution execution, Instant nextExecutionTime, NewData newData, Instant lastSuccess, Instant lastFailure, int consecutiveFailures) {
+	    if (this.persistHistory) {
+	        insertHistory(execution);
+        }
 		final int updated = jdbcRunner.execute(
 				"update " + tableName + " set " +
 						"picked = ?, " +
@@ -207,6 +220,37 @@ public class JdbcTaskRepository implements TaskRepository {
 		}
 		return updated > 0;
 	}
+/*
+task_name varchar(40) not null,
+    task_instance varchar(40) not null,
+    task_data blob,
+    execution_time timestamp(6) not null,
+    picked BOOLEAN not null,
+    picked_by varchar(50),
+    last_success timestamp(6) null,
+    last_failure timestamp(6) null,
+    consecutive_failures INT,
+    last_heartbeat timestamp(6) null,
+    version BIGINT not null,
+ */
+	private void insertHistory(Execution execution) {
+	    try {
+            jdbcRunner.execute("insert into " + persistHistoryTableName
+                    + " (task_name, task_instance, task_data, execution_time, picked, picked_by,"
+                    + " last_success, last_failure, consecutive_failures, last_heartbeat, version)"
+                    + " select task_name, task_instance, task_data, execution_time, picked, picked_by,"
+                    + " last_success, last_failure, consecutive_failures, last_heartbeat, version from " + tableName
+                    + " where task_name = ? and task_instance = ? and version = ?",
+                ps -> {
+                int index = 1;
+                ps.setString(index++, execution.taskInstance.getTaskName());
+                ps.setString(index++, execution.taskInstance.getId());
+                ps.setLong(index++, execution.version);
+            });
+        } catch (Exception e) {
+            LOG.trace("Failed to insert history.", e);
+        }
+    }
 
 	@Override
 	@SuppressWarnings({"unchecked"})
