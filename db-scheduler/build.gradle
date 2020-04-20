@@ -1,0 +1,27 @@
+apply plugin: 'li-java'
+
+dependencies {
+  compile  spec.external."micro-jdbc"
+  compile spec.external."slf4j-api"
+  compile spec.external."cron-utils"
+
+  testCompile spec.external."slf4j-simple"
+  testCompile spec.external."junit"
+  testCompile spec.external."hamcrest-core"
+  testCompile spec.external."hamcrest-library"
+  testCompile spec.external."java-8-matchers"
+  testCompile spec.external."equalsverifier"
+  testCompile spec.external."hsqldb"
+  testCompile spec.external."postgresql"
+  testCompile spec.external."otj-pg-embedded"
+  testCompile spec.external."HikariCP"
+  testCompile spec.external."guava"
+}
+
+checkstyle {
+  checkstyleMain.exclude '**'
+}
+
+test {
+  exclude 'com/github/kagkarlsson/scheduler/*'
+}
